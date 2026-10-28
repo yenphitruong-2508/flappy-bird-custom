@@ -15,7 +15,6 @@ def get_image_base64(path):
 img_base64 = get_image_base64("bird.png")
 
 st.title("🐦 Flappy Bird - Chú Chim Đội Mũ Siêu Ngầu")
-st.markdown("Nhấn phím **Space** hoặc click chuột vào khung game để bay lên!")
 
 game_html = f"""
 <!DOCTYPE html>
@@ -38,7 +37,10 @@ birdImg.src = "data:image/png;base64,{img_base64}";
 let bird = {{ x: 50, y: 150, width: 45, height: 35, gravity: 0.6, lift: -10, velocity: 0 }};
 let pipes = [];
 let pipeWidth = 60, pipeGap = 150, pipeSpeed = 3;
-let frameCount = 0, score = 0, isGameOver = false;
+let frameCount = 0, score = 0;
+
+// Trạng thái game: 'START', 'PLAYING', 'OVER'
+let gameState = 'START';
 
 function spawnPipe() {{
   let topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 100)) + 50;
@@ -46,21 +48,45 @@ function spawnPipe() {{
 }}
 
 function handleInput() {{
-  if (isGameOver) {{
-    resetGame();
-  }} else {{
+  if (gameState === 'START') {{
+    gameState = 'PLAYING';
+    resetGameVars();
+    loop();
+  }} else if (gameState === 'PLAYING') {{
     bird.velocity = bird.lift;
+  }} else if (gameState === 'OVER') {{
+    gameState = 'PLAYING';
+    resetGameVars();
+    loop();
   }}
 }}
 
 document.addEventListener("keydown", e => {{ if (e.code === "Space") {{ handleInput(); e.preventDefault(); }}}});
 canvas.addEventListener("click", handleInput);
 
-function resetGame() {{
-  bird.y = 150; bird.velocity = 0; pipes = []; score = 0; frameCount = 0; isGameOver = false; loop();
+function resetGameVars() {{
+  bird.y = 150; bird.velocity = 0; pipes = []; score = 0; frameCount = 0;
+}}
+
+function drawStartScreen() {{
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Vẽ chú chim trang trí ở màn hình chờ
+  ctx.drawImage(birdImg, canvas.width / 2 - 25, canvas.height / 2 - 60, 50, 40);
+  
+  ctx.fillStyle = "#FFF";
+  ctx.font = "bold 32px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("FLAPPY BIRD", canvas.width / 2, canvas.height / 2 - 10);
+  
+  ctx.fillStyle = "#FFEB3B";
+  ctx.font = "bold 20px Arial";
+  ctx.fillText("👉 Nhấn để Bắt Đầu 👈", canvas.width / 2, canvas.height / 2 + 40);
+  ctx.textAlign = "left";
 }}
 
 function loop() {{
+  if (gameState !== 'PLAYING') return;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (frameCount % 90 === 0) spawnPipe();
@@ -75,7 +101,7 @@ function loop() {{
 
     if (bird.x < pipes[i].x + pipeWidth && bird.x + bird.width > pipes[i].x &&
         (bird.y < pipes[i].top || bird.y + bird.height > canvas.height - pipes[i].bottom)) {{
-      isGameOver = true;
+      gameState = 'OVER';
     }}
 
     if (pipes[i].x + pipeWidth < 0) pipes.splice(i, 1);
@@ -85,12 +111,12 @@ function loop() {{
   bird.y += bird.velocity;
   ctx.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
-  if (bird.y + bird.height >= canvas.height || bird.y <= 0) isGameOver = true;
+  if (bird.y + bird.height >= canvas.height || bird.y <= 0) gameState = 'OVER';
 
   ctx.fillStyle = "#FFF"; ctx.font = "bold 28px Arial";
   ctx.fillText("Điểm: " + score, 20, 40);
 
-  if (isGameOver) {{
+  if (gameState === 'OVER') {{
     ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#FF5722"; ctx.font = "bold 35px Arial"; ctx.textAlign = "center";
@@ -105,7 +131,10 @@ function loop() {{
   requestAnimationFrame(loop);
 }}
 
-birdImg.onload = () => loop();
+// Hiển thị màn hình chờ ban đầu khi vừa tải trang
+birdImg.onload = () => {{
+  drawStartScreen();
+}};
 </script>
 </body>
 </html>
@@ -113,4 +142,4 @@ birdImg.onload = () => loop();
 
 import streamlit.components.v1 as components
 
-components.html(game_html, height=580, scrolling=False)
+components.html(game_html, height=580, scrolling=False) scrolling=False)
