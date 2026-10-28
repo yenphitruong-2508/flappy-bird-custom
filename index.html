@@ -192,13 +192,20 @@ function drawStartScreen() {
   drawDynamicBackground();
   drawBird(canvas.width / 2 - 25, canvas.height / 2 - 80, 50, 40, 0);
 
-  ctx.fillStyle = "#FFF"; ctx.font = "bold 36px Arial"; ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)"; ctx.shadowBlur = 6;
-  ctx.fillText("FLAPPY TẤU HÀI", canvas.width / 2, canvas.height / 2 - 15);
+  // Dòng chữ chính FLAPPY BIRD ở trên
+  ctx.fillStyle = "#FFF"; 
+  ctx.font = "bold 40px Arial"; 
+  ctx.textAlign = "center";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)"; 
+  ctx.shadowBlur = 6;
+  ctx.fillText("FLAPPY BIRD", canvas.width / 2, canvas.height / 2 - 10);
   
-  ctx.fillStyle = "#FFEB3B"; ctx.font = "bold 20px Arial";
-  ctx.fillText("😂 Nhấn để Bắt Đầu Cà Khịa 😂", canvas.width / 2, canvas.height / 2 + 45);
-  ctx.shadowBlur = 0; ctx.textAlign = "left";
+  // Dòng chữ phụ xuống hàng bên dưới
+  ctx.fillStyle = "#FFEB3B"; 
+  ctx.font = "bold 20px Arial";
+  ctx.fillText("👉 Nhấn để Bắt Đầu 👈", canvas.width / 2, canvas.height / 2 + 35);
+  ctx.shadowBlur = 0; 
+  ctx.textAlign = "left";
 }
 
 function drawScorecard() {
@@ -216,7 +223,6 @@ function drawScorecard() {
   ctx.fillStyle = "#dc2626"; ctx.font = "bold 30px Arial"; ctx.textAlign = "center";
   ctx.fillText("TOANG RỒI!", canvas.width / 2, boxY + 38);
 
-  // Câu nói cà khịa ngẫu nhiên
   ctx.fillStyle = "#422006"; ctx.font = "italic 14px Arial";
   ctx.fillText('"' + funnyQuote + '"', canvas.width / 2, boxY + 68);
 
@@ -269,7 +275,7 @@ function loop() {
       } else if (item.type === 'SHIELD') {
         bird.hasShield = true; createParticles(item.x, item.y, "#38bdf8");
       } else if (item.type === 'CHILI') {
-        pipeSpeed += 2; // Tăng tốc độ game gây ức chế hài hước
+        pipeSpeed += 2;
         createParticles(item.x, item.y, "#ef4444");
       }
     }
