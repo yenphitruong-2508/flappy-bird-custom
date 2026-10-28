@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <style>
   body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; margin: 0; font-family: Arial, sans-serif; }
-  canvas { border: 4px solid #fff; box-shadow: 0px 0px 20px rgba(0,0,0,0.8); background: #70c5ce; cursor: pointer; }
+  canvas { border: 4px solid #fff; box-shadow: 0px 0px 20px rgba(0,0,0,0.8); background: #4ec0ca; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -50,7 +50,7 @@ rawBirdImg.onload = function() {
 
 let bird = { x: 60, y: 220, width: 45, height: 35, gravity: 0.55, lift: -9, velocity: 0 };
 let pipes = [];
-let pipeWidth = 65, pipeGap = 155, pipeSpeed = 3;
+let pipeWidth = 68, pipeGap = 155, pipeSpeed = 3;
 let frameCount = 0, score = 0;
 let highScore = localStorage.getItem("flappy_highScore") || 0;
 let gameState = 'START'; 
@@ -69,28 +69,41 @@ function drawBackground() {
   }
 }
 
+// Hàm vẽ ống nước sáng đẹp, chuẩn phong cách retro giống mẫu
 function drawPipe(pipe) {
-  let pipeColor = "#73bf2e";
-  let pipeBorder = "#558022";
-  let capHeight = 26;
-  let capOverflow = 4;
+  let capHeight = 28;
+  let capOverflow = 5;
 
-  ctx.fillStyle = pipeColor;
+  // Hiệu ứng màu xanh lá tươi sáng, có độ bóng 3D
+  let pipeGrad = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+  pipeGrad.addColorStop(0, "#73de39");
+  pipeGrad.addColorStop(0.4, "#9eff6b");
+  pipeGrad.addColorStop(0.8, "#5fc928");
+  pipeGrad.addColorStop(1, "#3c8a14");
+
+  // --- ỐNG TRÊN ---
+  // Thân ống trên
+  ctx.fillStyle = pipeGrad;
   ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
-  ctx.strokeStyle = pipeBorder;
+  ctx.strokeStyle = "#335111";
   ctx.lineWidth = 3;
   ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top);
   
+  // Miệng ống trên (phình to ra)
   ctx.fillRect(pipe.x - capOverflow, pipe.top - capHeight, pipeWidth + (capOverflow * 2), capHeight);
   ctx.strokeRect(pipe.x - capOverflow, pipe.top - capHeight, pipeWidth + (capOverflow * 2), capHeight);
 
+  // --- ỐNG DƯỚI ---
   let bottomY = canvas.height - pipe.bottomHeight;
-  ctx.fillStyle = pipeColor;
-  ctx.fillRect(pipe.x, bottomY, pipeWidth, pipe.bottomHeight);
-  ctx.strokeRect(pipe.x, bottomY, pipeWidth, pipe.bottomHeight);
-
+  
+  // Miệng ống dưới (phình to ra)
+  ctx.fillStyle = pipeGrad;
   ctx.fillRect(pipe.x - capOverflow, bottomY, pipeWidth + (capOverflow * 2), capHeight);
   ctx.strokeRect(pipe.x - capOverflow, bottomY, pipeWidth + (capOverflow * 2), capHeight);
+
+  // Thân ống dưới
+  ctx.fillRect(pipe.x, bottomY + capHeight, pipeWidth, pipe.bottomHeight - capHeight);
+  ctx.strokeRect(pipe.x, bottomY + capHeight, pipeWidth, pipe.bottomHeight - capHeight);
 }
 
 function drawBird(x, y, w, h, velocity) {
