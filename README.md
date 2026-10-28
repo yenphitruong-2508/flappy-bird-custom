@@ -32,14 +32,22 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const birdImg = new Image();
+let imageLoaded = false;
 birdImg.src = "data:image/png;base64,{img_base64}";
+
+birdImg.onload = function() {{
+    imageLoaded = true;
+    drawStartScreen();
+}};
+birdImg.onerror = function() {{
+    imageLoaded = false;
+    drawStartScreen();
+}};
 
 let bird = {{ x: 50, y: 150, width: 45, height: 35, gravity: 0.6, lift: -10, velocity: 0 }};
 let pipes = [];
 let pipeWidth = 60, pipeGap = 150, pipeSpeed = 3;
 let frameCount = 0, score = 0;
-
-// Trạng thái game: 'START', 'PLAYING', 'OVER'
 let gameState = 'START';
 
 function spawnPipe() {{
@@ -68,10 +76,23 @@ function resetGameVars() {{
   bird.y = 150; bird.velocity = 0; pipes = []; score = 0; frameCount = 0;
 }}
 
+function drawBird(x, y, w, h) {{
+    if (imageLoaded) {{
+        ctx.drawImage(birdImg, x, y, w, h);
+    }} else {{
+        ctx.fillStyle = "#FFEB3B";
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }}
+}}
+
 function drawStartScreen() {{
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Vẽ chú chim trang trí ở màn hình chờ
-  ctx.drawImage(birdImg, canvas.width / 2 - 25, canvas.height / 2 - 60, 50, 40);
+  drawBird(canvas.width / 2 - 25, canvas.height / 2 - 60, 50, 40);
   
   ctx.fillStyle = "#FFF";
   ctx.font = "bold 32px Arial";
@@ -109,7 +130,7 @@ function loop() {{
 
   bird.velocity += bird.gravity;
   bird.y += bird.velocity;
-  ctx.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+  drawBird(bird.x, bird.y, bird.width, bird.height);
 
   if (bird.y + bird.height >= canvas.height || bird.y <= 0) gameState = 'OVER';
 
@@ -131,10 +152,12 @@ function loop() {{
   requestAnimationFrame(loop);
 }}
 
-// Hiển thị màn hình chờ ban đầu khi vừa tải trang
-birdImg.onload = () => {{
-  drawStartScreen();
-}};
+// Đề phòng trường hợp ảnh tải chậm, sau 0.5 giây sẽ ép hiển thị màn hình luôn
+setTimeout(() => {{
+    if (!imageLoaded) {{
+        drawStartScreen();
+    }}
+}, 500);
 </script>
 </body>
 </html>
@@ -142,4 +165,4 @@ birdImg.onload = () => {{
 
 import streamlit.components.v1 as components
 
-components.html(game_html, height=580, scrolling=False) scrolling=False)
+components.html(game_html, height=580, scrolling=False)
