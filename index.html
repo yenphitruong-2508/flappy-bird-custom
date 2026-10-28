@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <style>
-  body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; margin: 0; font-family: Arial, sans-serif; }
-  canvas { border: 4px solid #fff; box-shadow: 0px 0px 20px rgba(0,0,0,0.8); background: #4ec0ca; cursor: pointer; }
+  body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #0f172a; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  canvas { border: 4px solid #fff; border-radius: 8px; box-shadow: 0px 0px 25px rgba(0,0,0,0.8); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -17,12 +17,9 @@ const ctx = canvas.getContext("2d");
 const bgImg = new Image();
 let bgLoaded = false;
 bgImg.src = "data:image/png;base64,INSERT_BG_BASE64_HERE";
-bgImg.onload = function() {
-    bgLoaded = true;
-    drawStartScreen();
-};
+bgImg.onload = function() { bgLoaded = true; drawStartScreen(); };
 
-// Tải ảnh chú chim và tự động tách nền trắng
+// Tải ảnh chú chim và tự động tách nền
 const rawBirdImg = new Image();
 let processedBirdImg = new Image();
 let imageLoaded = false;
@@ -38,74 +35,148 @@ rawBirdImg.onload = function() {
     const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const data = imgData.data;
     for (let i = 0; i < data.length; i += 4) {
-        let r = data[i], g = data[i+1], b = data[i+2];
-        if (r > 220 && g > 220 && b > 220) {
-            data[i+3] = 0;
-        }
+        if (data[i] > 220 && data[i+1] > 220 && data[i+2] > 220) data[i+3] = 0;
     }
     tempCtx.putImageData(imgData, 0, 0);
     processedBirdImg.src = tempCanvas.toDataURL();
     imageLoaded = true;
 };
 
-let bird = { x: 60, y: 220, width: 45, height: 35, gravity: 0.55, lift: -9, velocity: 0 };
+// Khai báo biến Trò chơi
+let bird = { x: 60, y: 220, width: 45, height: 35, gravity: 0.52, lift: -8.8, velocity: 0, hasShield: false };
 let pipes = [];
-let pipeWidth = 68, pipeGap = 155, pipeSpeed = 3;
+let items = [];
+let particles = [];
+let pipeWidth = 68, pipeGap = 160, pipeSpeed = 3;
 let frameCount = 0, score = 0;
 let highScore = localStorage.getItem("flappy_highScore") || 0;
-let gameState = 'START'; 
+let gameState = 'START';
 
 function spawnPipe() {
   let topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 180)) + 60;
   pipes.push({ x: canvas.width, top: topHeight, bottomHeight: canvas.height - topHeight - pipeGap, passed: false });
-}
 
-function drawBackground() {
-  if (bgLoaded) {
-      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-  } else {
-      ctx.fillStyle = "#4ec0ca";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Tỷ lệ xuất hiện Vật phẩm thưởng (Xoài) hoặc Khiên bảo vệ
+  let rand = Math.random();
+  if (rand < 0.35) {
+    let itemType = Math.random() < 0.25 ? 'SHIELD' : 'MANGO';
+    items.push({
+      x: canvas.width + pipeWidth / 2 - 12,
+      y: topHeight + pipeGap / 2 - 12,
+      size: 24,
+      type: itemType,
+      collected: false
+    });
   }
 }
 
-// Hàm vẽ ống nước sáng đẹp, chuẩn phong cách retro giống mẫu
-function drawPipe(pipe) {
-  let capHeight = 28;
-  let capOverflow = 5;
+// Vẽ Nền chuyển màu theo mốc Điểm
+function drawDynamicBackground() {
+  if (bgLoaded && score < 10) {
+      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+      return;
+  }
+  
+  let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  if (score >= 20) {
+      // Ban đêm đầy sao
+      skyGrad.addColorStop(0, "#0f172a");
+      skyGrad.addColorStop(1, "#1e1b4b");
+  } else if (score >= 10) {
+      // Hoàng hôn rực rỡ
+      skyGrad.addColorStop(0, "#f97316");
+      skyGrad.addColorStop(1, "#f43f5e");
+  } else {
+      skyGrad.addColorStop(0, "#38bdf8");
+      skyGrad.addColorStop(1, "#bae6fd");
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
-  // Hiệu ứng màu xanh lá tươi sáng, có độ bóng 3D
+// Vẽ Ống Nước 3D
+function drawPipe(pipe) {
+  let capHeight = 28, capOverflow = 5;
   let pipeGrad = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
   pipeGrad.addColorStop(0, "#73de39");
   pipeGrad.addColorStop(0.4, "#9eff6b");
   pipeGrad.addColorStop(0.8, "#5fc928");
   pipeGrad.addColorStop(1, "#3c8a14");
 
-  // --- ỐNG TRÊN ---
-  // Thân ống trên
+  // Ống trên
   ctx.fillStyle = pipeGrad;
   ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
-  ctx.strokeStyle = "#335111";
+  ctx.strokeStyle = "#254109";
   ctx.lineWidth = 3;
   ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top);
-  
-  // Miệng ống trên (phình to ra)
   ctx.fillRect(pipe.x - capOverflow, pipe.top - capHeight, pipeWidth + (capOverflow * 2), capHeight);
   ctx.strokeRect(pipe.x - capOverflow, pipe.top - capHeight, pipeWidth + (capOverflow * 2), capHeight);
 
-  // --- ỐNG DƯỚI ---
+  // Ống dưới
   let bottomY = canvas.height - pipe.bottomHeight;
-  
-  // Miệng ống dưới (phình to ra)
-  ctx.fillStyle = pipeGrad;
   ctx.fillRect(pipe.x - capOverflow, bottomY, pipeWidth + (capOverflow * 2), capHeight);
   ctx.strokeRect(pipe.x - capOverflow, bottomY, pipeWidth + (capOverflow * 2), capHeight);
-
-  // Thân ống dưới
   ctx.fillRect(pipe.x, bottomY + capHeight, pipeWidth, pipe.bottomHeight - capHeight);
   ctx.strokeRect(pipe.x, bottomY + capHeight, pipeWidth, pipe.bottomHeight - capHeight);
 }
 
+// Vẽ Vật phẩm (Xoài Vàng & Khiên)
+function drawItems() {
+  items.forEach(item => {
+    if (item.collected) return;
+    ctx.save();
+    if (item.type === 'MANGO') {
+      ctx.fillStyle = "#facc15";
+      ctx.beginPath();
+      ctx.arc(item.x + 12, item.y + 12, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#22c55e";
+      ctx.fillRect(item.x + 10, item.y - 2, 5, 5); // Cuống lá
+    } else if (item.type === 'SHIELD') {
+      ctx.fillStyle = "#38bdf8";
+      ctx.beginPath();
+      ctx.arc(item.x + 12, item.y + 12, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 14px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("🛡️", item.x + 12, item.y + 17);
+    }
+    ctx.restore();
+  });
+}
+
+// Hiệu ứng Hạt lấp lánh (Particles)
+function createParticles(x, y, color) {
+  for (let i = 0; i < 5; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 3,
+      vy: (Math.random() - 0.5) * 3,
+      size: Math.random() * 5 + 2,
+      alpha: 1,
+      color: color || "#fde047"
+    });
+  }
+}
+
+function updateAndDrawParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.alpha -= 0.03;
+    if (p.alpha <= 0) { particles.splice(i, 1); continue; }
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Vẽ Chim & Khiên Bảo Vệ
 function drawBird(x, y, w, h, velocity) {
   ctx.save();
   ctx.translate(x + w / 2, y + h / 2);
@@ -120,168 +191,65 @@ function drawBird(x, y, w, h, velocity) {
       ctx.arc(0, 0, w/2, 0, Math.PI * 2);
       ctx.fill();
   }
+
+  // Vẽ vòng khiên bảo vệ nếu có
+  if (bird.hasShield) {
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, w / 2 + 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
 function handleInput() {
-  if (gameState === 'START') {
+  if (gameState === 'START' || gameState === 'OVER') {
     gameState = 'PLAYING';
     resetGameVars();
     loop();
   } else if (gameState === 'PLAYING') {
     bird.velocity = bird.lift;
-  } else if (gameState === 'OVER') {
-    gameState = 'PLAYING';
-    resetGameVars();
-    loop();
+    createParticles(bird.x, bird.y + bird.height, "#38bdf8");
   }
 }
 
-document.addEventListener("keydown", e => { 
-  if (e.code === "Space") { 
-    handleInput(); 
-    e.preventDefault(); 
-  } 
-});
-
-canvas.addEventListener("click", e => {
-  handleInput();
-});
+document.addEventListener("keydown", e => { if (e.code === "Space") { handleInput(); e.preventDefault(); } });
+canvas.addEventListener("click", handleInput);
 
 function resetGameVars() {
-  bird.y = 220; 
-  bird.velocity = 0; 
-  pipes = []; 
-  score = 0; 
-  frameCount = 0;
+  bird.y = 220; bird.velocity = 0; bird.hasShield = false;
+  pipes = []; items = []; particles = []; score = 0; frameCount = 0;
 }
 
 function drawStartScreen() {
-  drawBackground();
+  drawDynamicBackground();
   drawBird(canvas.width / 2 - 25, canvas.height / 2 - 80, 50, 40, 0);
 
   ctx.fillStyle = "#FFF";
   ctx.font = "bold 38px Arial";
   ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-  ctx.shadowBlur = 6;
-  ctx.fillText("FLAPPY BIRD", canvas.width / 2, canvas.height / 2 - 15);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)"; ctx.shadowBlur = 6;
+  ctx.fillText("SUPER FLAPPY", canvas.width / 2, canvas.height / 2 - 15);
   
   ctx.fillStyle = "#FFEB3B";
-  ctx.font = "bold 24px Arial";
-  ctx.fillText("👉 Nhấn để Bắt Đầu 👈", canvas.width / 2, canvas.height / 2 + 45);
-  ctx.shadowBlur = 0;
-  ctx.textAlign = "left";
+  ctx.font = "bold 22px Arial";
+  ctx.fillText("✨ Nhấn để Bắt Đầu ✨", canvas.width / 2, canvas.height / 2 + 45);
+  ctx.shadowBlur = 0; ctx.textAlign = "left";
 }
 
 function drawScorecard() {
-  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  let boxWidth = 300;
-  let boxHeight = 220;
+  let boxWidth = 320, boxHeight = 230;
   let boxX = (canvas.width - boxWidth) / 2;
   let boxY = (canvas.height - boxHeight) / 2 - 20;
 
-  ctx.fillStyle = "#ded895";
-  ctx.strokeStyle = "#55380c";
-  ctx.lineWidth = 4;
+  ctx.fillStyle = "#fef08a"; ctx.strokeStyle = "#713f12"; ctx.lineWidth = 4;
   ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
   ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
 
-  ctx.fillStyle = "#d9381e";
-  ctx.font = "bold 32px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("GAME OVER", canvas.width / 2, boxY + 40);
-
-  ctx.fillStyle = "#55380c";
-  ctx.font = "bold 20px Arial";
-  ctx.textAlign = "left";
-  ctx.fillText("Điểm hiện tại:", boxX + 30, boxY + 95);
-  ctx.textAlign = "right";
-  ctx.fillText(score, boxX + boxWidth - 30, boxY + 95);
-
-  ctx.textAlign = "left";
-  ctx.fillText("Cao nhất:", boxX + 30, boxY + 140);
-  ctx.textAlign = "right";
-  ctx.fillText(highScore, boxX + boxWidth - 30, boxY + 140);
-
-  let btnWidth = 160;
-  let btnHeight = 45;
-  let btnX = (canvas.width - btnWidth) / 2;
-  let btnY = boxY + boxHeight + 20;
-
-  ctx.fillStyle = "#e06322";
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 3;
-  ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
-  ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
-
-  ctx.fillStyle = "#FFF";
-  ctx.font = "bold 22px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("🔄 THỬ LẠI", canvas.width / 2, btnY + 30);
-  ctx.textAlign = "left";
-}
-
-function loop() {
-  if (gameState !== 'PLAYING') return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBackground();
-
-  if (frameCount % 90 === 0) spawnPipe();
-
-  for (let i = pipes.length - 1; i >= 0; i--) {
-    pipes[i].x -= pipeSpeed;
-    drawPipe(pipes[i]);
-
-    if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
-      score++;
-      pipes[i].passed = true;
-      if (score > highScore) {
-        highScore = score;
-        localStorage.setItem("flappy_highScore", highScore);
-      }
-    }
-
-    let topCollision = bird.x < pipes[i].x + pipeWidth && bird.x + bird.width > pipes[i].x && bird.y < pipes[i].top;
-    let bottomCollision = bird.x < pipes[i].x + pipeWidth && bird.x + bird.width > pipes[i].x && bird.y + bird.height > canvas.height - pipes[i].bottomHeight;
-
-    if (topCollision || bottomCollision) {
-      gameState = 'OVER';
-    }
-
-    if (pipes[i].x + pipeWidth < 0) {
-      pipes.splice(i, 1);
-    }
-  }
-
-  bird.velocity += bird.gravity;
-  bird.y += bird.velocity;
-  drawBird(bird.x, bird.y, bird.width, bird.height, bird.velocity);
-
-  if (bird.y + bird.height >= canvas.height - 100 || bird.y <= 0) {
-    gameState = 'OVER';
-  }
-
-  ctx.fillStyle = "#FFF";
-  ctx.font = "bold 40px Arial";
-  ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-  ctx.shadowBlur = 4;
-  ctx.fillText(score, canvas.width / 2, 70);
-  ctx.shadowBlur = 0;
-  ctx.textAlign = "left";
-
-  if (gameState === 'OVER') {
-    drawScorecard();
-    return;
-  }
-
-  frameCount++;
-  requestAnimationFrame(loop);
-}
-</script>
-</body>
-</html>
+  ctx.fillStyle = "#dc2626"; ctx.font = "bold 34px Arial"; ctx.textAlign = "center";
+  ctx.fillText("GAME OVER", canvas.width / 2, boxY + 45
