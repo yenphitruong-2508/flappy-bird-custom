@@ -13,6 +13,85 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// --- HỆ THỐNG ÂM THANH 8-BIT (WEB AUDIO API) ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+// Âm thanh nhảy (Jump)
+function playJumpSound() {
+  if (!audioCtx) return;
+  let osc = audioCtx.createOscillator();
+  let gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// Âm thanh ăn vật phẩm (Item / Điểm)
+function playItemSound() {
+  if (!audioCtx) return;
+  let osc = audioCtx.createOscillator();
+  let gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+  osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08); // E5
+  osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.16); // G5
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.25);
+}
+
+// Âm thanh ăn Ớt (Speed up)
+function playChiliSound() {
+  if (!audioCtx) return;
+  let osc = audioCtx.createOscillator();
+  let gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+
+// Âm thanh va chạm (Hit / Game Over)
+function playHitSound() {
+  if (!audioCtx) return;
+  let osc = audioCtx.createOscillator();
+  let gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.25);
+  gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.25);
+}
+
+// --- DỮ LIỆU GAME ---
 const bgImg = new Image();
 let bgLoaded = false;
 bgImg.src = "data:image/png;base64,INSERT_BG_BASE64_HERE";
@@ -170,12 +249,15 @@ function drawBird(x, y, w, h, velocity) {
 }
 
 function handleInput() {
+  initAudio(); // Khởi tạo âm thanh
   if (gameState === 'START' || gameState === 'OVER') {
     gameState = 'PLAYING';
     resetGameVars();
+    playJumpSound();
     loop();
   } else if (gameState === 'PLAYING') {
     bird.velocity = bird.lift;
+    playJumpSound(); // Phát tiếng nhảy
     createParticles(bird.x, bird.y + bird.height, "#38bdf8");
   }
 }
@@ -192,7 +274,6 @@ function drawStartScreen() {
   drawDynamicBackground();
   drawBird(canvas.width / 2 - 25, canvas.height / 2 - 80, 50, 40, 0);
 
-  // Dòng chữ chính FLAPPY BIRD ở trên
   ctx.fillStyle = "#FFF"; 
   ctx.font = "bold 40px Arial"; 
   ctx.textAlign = "center";
@@ -200,7 +281,6 @@ function drawStartScreen() {
   ctx.shadowBlur = 6;
   ctx.fillText("FLAPPY BIRD", canvas.width / 2, canvas.height / 2 - 10);
   
-  // Dòng chữ phụ xuống hàng bên dưới
   ctx.fillStyle = "#FFEB3B"; 
   ctx.font = "bold 20px Arial";
   ctx.fillText("👉 Nhấn để Bắt Đầu 👈", canvas.width / 2, canvas.height / 2 + 35);
@@ -248,9 +328,11 @@ function drawScorecard() {
 function triggerGameOver() {
   if (bird.hasShield) {
     bird.hasShield = false;
+    playHitSound();
     createParticles(bird.x, bird.y, "#38bdf8");
     bird.velocity = -6;
   } else {
+    playHitSound(); // Tiếng đụng ống
     funnyQuote = quotes[Math.floor(Math.random() * quotes.length)];
     gameState = 'OVER';
   }
@@ -271,11 +353,16 @@ function loop() {
         bird.y < item.y + item.size && bird.y + bird.height > item.y) {
       item.collected = true;
       if (item.type === 'MANGO') {
-        score += 3; createParticles(item.x, item.y, "#facc15");
+        score += 3;
+        playItemSound(); // Tiếng ăn điểm
+        createParticles(item.x, item.y, "#facc15");
       } else if (item.type === 'SHIELD') {
-        bird.hasShield = true; createParticles(item.x, item.y, "#38bdf8");
+        bird.hasShield = true;
+        playItemSound();
+        createParticles(item.x, item.y, "#38bdf8");
       } else if (item.type === 'CHILI') {
         pipeSpeed += 2;
+        playChiliSound(); // Tiếng ăn ớt
         createParticles(item.x, item.y, "#ef4444");
       }
     }
@@ -289,6 +376,7 @@ function loop() {
 
     if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
       score++;
+      playItemSound(); // Tiếng vượt qua 1 ống
       pipes[i].passed = true;
       if (score > highScore) { highScore = score; localStorage.setItem("flappy_highScore", highScore); }
     }
