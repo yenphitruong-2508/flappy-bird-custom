@@ -1,7 +1,7 @@
 import base64
 import streamlit as st
 
-st.set_page_config(page_title="Flappy Bird - 3D Custom", layout="centered")
+st.set_page_config(page_title="Flappy Bird - Retro Style", layout="centered")
 
 
 def get_image_base64(path):
@@ -14,24 +14,24 @@ def get_image_base64(path):
 
 img_base64 = get_image_base64("bird.png")
 
-st.title("🐦 Flappy Bird - Phiên Bản 3D Đỉnh Cao")
+st.title("🐦 Flappy Bird - Phiên Bản Cổ Điển Chuẩn Retro")
 
 game_html = f"""
 <!DOCTYPE html>
 <html>
 <head>
 <style>
-  body {{ display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; margin: 0; }}
-  canvas {{ border: 4px solid #fff; box-shadow: 0px 0px 20px rgba(0,0,0,0.8); background: linear-gradient(#4ec0ca, #70c5ce); cursor: pointer; }}
+  body {{ display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; margin: 0; font-family: Arial, sans-serif; }}
+  canvas {{ border: 4px solid #fff; box-shadow: 0px 0px 20px rgba(0,0,0,0.8); background: #4ec0ca; cursor: pointer; }}
 </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="400" height="550"></canvas>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Xử lý tự động tách nền trắng của ảnh chú chim
+// Tự động tách nền trắng của ảnh chú chim
 const rawBirdImg = new Image();
 let processedBirdImg = new Image();
 let imageLoaded = false;
@@ -46,11 +46,10 @@ rawBirdImg.onload = function() {{
     
     const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const data = imgData.data;
-    // Tự động chuyển các pixel màu trắng hoặc gần trắng thành trong suốt (Transparent)
     for (let i = 0; i < data.length; i += 4) {{
         let r = data[i], g = data[i+1], b = data[i+2];
         if (r > 220 && g > 220 && b > 220) {{
-            data[i+3] = 0; // Alpha = 0 (Trong suốt)
+            data[i+3] = 0;
         }}
     }}
     tempCtx.putImageData(imgData, 0, 0);
@@ -59,15 +58,96 @@ rawBirdImg.onload = function() {{
     drawStartScreen();
 }};
 
-let bird = {{ x: 60, y: 200, width: 48, height: 36, gravity: 0.55, lift: -9, velocity: 0 }};
+let bird = {{ x: 60, y: 220, width: 45, height: 35, gravity: 0.55, lift: -9, velocity: 0 }};
 let pipes = [];
-let pipeWidth = 65, pipeGap = 150, pipeSpeed = 3;
+let pipeWidth = 65, pipeGap = 155, pipeSpeed = 3;
 let frameCount = 0, score = 0;
-let gameState = 'START';
+let highScore = localStorage.getItem("flappy_highScore") || 0;
+let gameState = 'START'; // 'START', 'PLAYING', 'OVER'
 
 function spawnPipe() {{
-  let topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 120)) + 60;
-  pipes.push({{ x: canvas.width, top: topHeight, bottom: canvas.height - topHeight - pipeGap, passed: false }});
+  let topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 180)) + 60;
+  pipes.push({{ x: canvas.width, top: topHeight, bottomHeight: canvas.height - topHeight - pipeGap, passed: false }});
+}}
+
+// Vẽ background phong cách retro (mây, thành phố, bụi cây)
+function drawBackground() {{
+  ctx.fillStyle = "#4ec0ca";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Mây
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.beginPath();
+  ctx.arc(80, 120, 30, 0, Math.PI * 2);
+  ctx.arc(110, 115, 40, 0, Math.PI * 2);
+  ctx.arc(140, 125, 25, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(300, 220, 35, 0, Math.PI * 2);
+  ctx.arc(335, 210, 45, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tòa nhà thành phố phía sau[cite: 7]
+  ctx.fillStyle = "#9cc6cb";
+  ctx.fillRect(40, canvas.height - 220, 45, 220);
+  ctx.fillRect(85, canvas.height - 180, 35, 180);
+  ctx.fillRect(140, canvas.height - 250, 50, 250);
+  ctx.fillRect(230, canvas.height - 200, 40, 200);
+  ctx.fillRect(285, canvas.height - 240, 55, 240);
+
+  // Bụi cây xanh[cite: 7]
+  ctx.fillStyle = "#73bf2e";
+  for (let i = 0; i < canvas.width; i += 40) {{
+    ctx.beginPath();
+    ctx.arc(i + 20, canvas.height - 120, 35, 0, Math.PI * 2);
+    ctx.fill();
+  }}
+  ctx.fillStyle = "#558022";
+  ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+}}
+
+function drawPipe(pipe) {{
+  let pipeColor = "#73bf2e";
+  let pipeBorder = "#558022";
+  let capHeight = 26;
+  let capOverflow = 4;
+
+  // Ống trên
+  ctx.fillStyle = pipeColor;
+  ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+  ctx.strokeStyle = pipeBorder;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top);
+  
+  ctx.fillRect(pipe.x - capOverflow, pipe.top - capHeight, pipeWidth + (capOverflow * 2), capHeight);
+  ctx.strokeRect(pipe.x - capOverflow, pipe.top - capHeight, pipeWidth + (capOverflow * 2), capHeight);
+
+  // Ống dưới
+  let bottomY = canvas.height - pipe.bottomHeight;
+  ctx.fillStyle = pipeColor;
+  ctx.fillRect(pipe.x, bottomY, pipeWidth, pipe.bottomHeight);
+  ctx.strokeRect(pipe.x, bottomY, pipeWidth, pipe.bottomHeight);
+
+  ctx.fillRect(pipe.x - capOverflow, bottomY, pipeWidth + (capOverflow * 2), capHeight);
+  ctx.strokeRect(pipe.x - capOverflow, bottomY, pipeWidth + (capOverflow * 2), capHeight);
+}}
+
+function drawBird(x, y, w, h, velocity) {{
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  let rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, velocity * 0.08));
+  ctx.rotate(rotation);
+
+  if (imageLoaded) {{
+      ctx.drawImage(processedBirdImg, -w / 2, -h / 2, w, h);
+  }} else {{
+      ctx.fillStyle = "#FFEB3B";
+      ctx.beginPath();
+      ctx.arc(0, 0, w/2, 0, Math.PI * 2);
+      ctx.fill();
+  }}
+  ctx.restore();
 }}
 
 function handleInput() {{
@@ -84,38 +164,94 @@ function handleInput() {{
   }}
 }}
 
-document.addEventListener("keydown", e => {{ if (e.code === "Space") {{ handleInput(); e.preventDefault(); }}}});
-canvas.addEventListener("click", handleInput);
+document.addEventListener("keydown", e => {{ 
+  if (e.code === "Space") {{ 
+    handleInput(); 
+    e.preventDefault(); 
+  }} 
+}});
+
+canvas.addEventListener("click", e => {{
+  handleInput();
+}});
 
 function resetGameVars() {{
-  bird.y = 200; bird.velocity = 0; pipes = []; score = 0; frameCount = 0;
+  bird.y = 220; 
+  bird.velocity = 0; 
+  pipes = []; 
+  score = 0; 
+  frameCount = 0;
 }}
 
 function drawStartScreen() {{
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Vẽ nền trời 3D gradient
-  let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#4ec0ca");
-  gradient.addColorStop(1, "#2b8a95");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  if (imageLoaded) {{
-      ctx.drawImage(processedBirdImg, canvas.width / 2 - 25, canvas.height / 2 - 70, 50, 40);
-  }}
+  drawBackground();
+  drawBird(canvas.width / 2 - 25, canvas.height / 2 - 80, 50, 40, 0);
 
   ctx.fillStyle = "#FFF";
-  ctx.font = "bold 34px Arial";
+  ctx.font = "bold 38px Arial";
   ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
   ctx.shadowBlur = 6;
-  ctx.fillText("FLAPPY BIRD 3D", canvas.width / 2, canvas.height / 2 - 10);
+  ctx.fillText("FLAPPY BIRD", canvas.width / 2, canvas.height / 2 - 15);
   
   ctx.fillStyle = "#FFEB3B";
-  ctx.font = "bold 22px Arial";
+  ctx.font = "bold 24px Arial";
   ctx.fillText("👉 Nhấn để Bắt Đầu 👈", canvas.width / 2, canvas.height / 2 + 45);
   ctx.shadowBlur = 0;
+  ctx.textAlign = "left";
+}}
+
+function drawScorecard() {{
+  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  let boxWidth = 300;
+  let boxHeight = 220;
+  let boxX = (canvas.width - boxWidth) / 2;
+  let boxY = (canvas.height - boxHeight) / 2 - 20;
+
+  // Bảng điểm retro vàng
+  ctx.fillStyle = "#ded895";
+  ctx.strokeStyle = "#55380c";
+  ctx.lineWidth = 4;
+  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+  ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+  ctx.fillStyle = "#d9381e";
+  ctx.font = "bold 32px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("GAME OVER", canvas.width / 2, boxY + 40);
+
+  // Điểm hiện tại
+  ctx.fillStyle = "#55380c";
+  ctx.font = "bold 20px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText("Điểm hiện tại:", boxX + 30, boxY + 95);
+  ctx.textAlign = "right";
+  ctx.fillText(score, boxX + boxWidth - 30, boxY + 95);
+
+  // Điểm kỷ lục cao nhất
+  ctx.textAlign = "left";
+  ctx.fillText("Cao nhất:", boxX + 30, boxY + 140);
+  ctx.textAlign = "right";
+  ctx.fillText(highScore, boxX + boxWidth - 30, boxY + 140);
+
+  // Nút Thử Lại
+  let btnWidth = 160;
+  let btnHeight = 45;
+  let btnX = (canvas.width - btnWidth) / 2;
+  let btnY = boxY + boxHeight + 20;
+
+  ctx.fillStyle = "#e06322";
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 3;
+  ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
+  ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
+
+  ctx.fillStyle = "#FFF";
+  ctx.font = "bold 22px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("🔄 THỬ LẠI", canvas.width / 2, btnY + 30);
   ctx.textAlign = "left";
 }}
 
@@ -124,93 +260,55 @@ function loop() {{
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Vẽ nền trời
-  let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#4ec0ca");
-  gradient.addColorStop(1, "#3196a2");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
 
   if (frameCount % 90 === 0) spawnPipe();
 
-  // Vẽ ống nước kiểu 3D có viền bóng
   for (let i = pipes.length - 1; i >= 0; i--) {{
     pipes[i].x -= pipeSpeed;
+    drawPipe(pipes[i]);
 
-    // Ống trên
-    let pipeGradTop = ctx.createLinearGradient(pipes[i].x, 0, pipes[i].x + pipeWidth, 0);
-    pipeGradTop.addColorStop(0, "#73bf2e");
-    pipeGradTop.addColorStop(0.5, "#9de356");
-    pipeGradTop.addColorStop(1, "#558022");
-    ctx.fillStyle = pipeGradTop;
-    ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
-    ctx.strokeStyle = "#335111";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
+    if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {{
+      score++;
+      pipes[i].passed = true;
+      if (score > highScore) {{
+        highScore = score;
+        localStorage.setItem("flappy_highScore", highScore);
+      }}
+    }}
 
-    // Ống dưới
-    let pipeGradBot = ctx.createLinearGradient(pipes[i].x, 0, pipes[i].x + pipeWidth, 0);
-    pipeGradBot.addColorStop(0, "#73bf2e");
-    pipeGradBot.addColorStop(0.5, "#9de356");
-    pipeGradBot.addColorStop(1, "#558022");
-    ctx.fillStyle = pipeGradBot;
-    ctx.fillRect(pipes[i].x, canvas.height - pipes[i].bottom, pipeWidth, pipes[i].bottom);
-    ctx.strokeRect(pipes[i].x, canvas.height - pipes[i].bottom, pipeWidth, pipes[i].bottom);
+    let topCollision = bird.x < pipes[i].x + pipeWidth && bird.x + bird.width > pipes[i].x && bird.y < pipes[i].top;
+    let bottomCollision = bird.x < pipes[i].x + pipeWidth && bird.x + bird.width > pipes[i].x && bird.y + bird.height > canvas.height - pipes[i].bottomHeight;
 
-    if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {{ score++; pipes[i].passed = true; }}
-
-    if (bird.x < pipes[i].x + pipeWidth && bird.x + bird.width > pipes[i].x &&
-        (bird.y < pipes[i].top || bird.y + bird.height > canvas.height - pipes[i].bottom)) {{
+    if (topCollision || bottomCollision) {{
       gameState = 'OVER';
     }}
 
-    if (pipes[i].x + pipeWidth < 0) pipes.splice(i, 1);
+    if (pipes[i].x + pipeWidth < 0) {{
+      pipes.splice(i, 1);
+    }}
   }}
 
-  // Cập nhật vật lý chim
   bird.velocity += bird.gravity;
   bird.y += bird.velocity;
+  drawBird(bird.x, bird.y, bird.width, bird.height, bird.velocity);
 
-  // Hiệu ứng xoay góc (chúc đầu xuống khi rơi, ngẩng lên khi bay) khi vẽ chim
-  ctx.save();
-  ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
-  let rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.velocity * 0.08));
-  ctx.rotate(rotation);
-
-  if (imageLoaded) {{
-      ctx.drawImage(processedBirdImg, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
-  }} else {{
-      ctx.fillStyle = "#FFEB3B";
-      ctx.beginPath();
-      ctx.arc(0, 0, bird.width/2, 0, Math.PI * 2);
-      ctx.fill();
+  if (bird.y + bird.height >= canvas.height - 100 || bird.y <= 0) {{
+    gameState = 'OVER';
   }}
-  ctx.restore();
 
-  // Kiểm tra chạm đất / chạm trần
-  if (bird.y + bird.height >= canvas.height || bird.y <= 0) gameState = 'OVER';
-
-  // Hiển thị điểm số 3D nổi bật
+  // Hiển thị điểm số khi đang chơi
   ctx.fillStyle = "#FFF";
-  ctx.font = "bold 32px Arial";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.font = "bold 40px Arial";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
   ctx.shadowBlur = 4;
-  ctx.fillText("Điểm: " + score, 20, 45);
+  ctx.fillText(score, canvas.width / 2, 70);
   ctx.shadowBlur = 0;
+  ctx.textAlign = "left";
 
   if (gameState === 'OVER') {{
-    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = "#FF5722";
-    ctx.font = "bold 40px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 25);
-    
-    ctx.fillStyle = "#FFF";
-    ctx.font = "20px Arial";
-    ctx.fillText("Click hoặc Space để chơi lại", canvas.width / 2, canvas.height / 2 + 25);
-    ctx.textAlign = "left";
+    drawScorecard();
     return;
   }}
 
@@ -219,8 +317,8 @@ function loop() {{
 }}
 
 setTimeout(() => {{
-    if (!imageLoaded) drawStartScreen();
-}, 600);
+    drawStartScreen();
+}, 200);
 </script>
 </body>
 </html>
@@ -228,4 +326,4 @@ setTimeout(() => {{
 
 import streamlit.components.v1 as components
 
-components.html(game_html, height=580, scrolling=False)
+components.html(game_html, height=620, scrolling=False)
