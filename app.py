@@ -15,17 +15,15 @@ def get_image_base64(path):
 
 
 img_base64 = get_image_base64("bird.png")
+bg_base64 = get_image_base64("background.png")
 
-# Đọc file giao diện HTML game
 try:
   with open("index.html", "r", encoding="utf-8") as f:
     game_html = f.read()
-  # Chèn ảnh chú chim vào code game
   game_html = game_html.replace("INSERT_BIRD_BASE64_HERE", img_base64)
+  game_html = game_html.replace("INSERT_BG_BASE64_HERE", bg_base64)
 except FileNotFoundError:
-  game_html = (
-      "<h1>Chưa tìm thấy file index.html, vui lòng kiểm tra lại!</h1>"
-  )
+  game_html = "<h1>Chưa tìm thấy file index.html!</h1>"
 
 import streamlit.components.v1 as components
 
